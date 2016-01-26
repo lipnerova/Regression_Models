@@ -53,7 +53,7 @@ Based on preliminary analysis of data (not shown due to length restriction), var
 ```
 
 # Fitting
-The __am__ seems to be related with some of other variables from the dataset, so to not omit some important effect, I will start with model with all variables and will substract nonsignificant terms step by step. I show only fit of starting and final model, all steps in between are not shown and can be found in .Rmd file on GitHub.
+The __am__ seems to be related with some of other variables from the dataset, so to not omit some important effect, I will start with model with all variables and will substract nonsignificant terms step by step. I show only fit of starting and final model, all steps in between are not shown and can be found in [.Rmd file on GitHub](https://github.com/lipnerova/Regression_Models/blob/master/project_rm_multiple_models.Rmd).
 
 ```{r model_1}
 fit1<-lm(mpg ~ ., data=mtcars)
