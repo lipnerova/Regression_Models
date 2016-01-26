@@ -1,0 +1,104 @@
+---
+title: "Automatic or manual transmission?"
+author: "Ivana Lipnerová"
+date: "January 25, 2016"
+output: pdf_document
+---
+# Introduction
+The aim of this study is to investigate dataset called mtcars from R library of datasets in terms of regression models. The data are extract from 1974 _Motor Trend_ magazine comprising fuel consumption and 10 aspects of automobile design and performance for 32 automobiles. The questions through I will look into this dataset are about effect of types of transmission on fuel consumption: (i) is an automatic or manual transmission better for MPG and (ii) quantify the MPG difference between automatic and manual transmissions.
+
+# The data
+```{r libraries, message=F, warning=F}
+#necessary libraries:
+library(knitr); library(ggplot2); library(GGally)
+#dataset:
+data("mtcars"); cars<-mtcars
+# Set factorial variables as factors:
+cars$am[cars$am==0] <- "Automatic"; cars$am[cars$am==1] <- "Manual"
+cars$vs[cars$vs==0] <- "V"; cars$vs[cars$vs==1] <- "S"
+cars$am <-as.factor(cars$am); cars$vs <-as.factor(cars$vs)
+```
+```{r ggpairs, message=F, warning=F, echo=F}
+.ggpairs <- function(colInds, data=iris) {
+  n <- length(colInds)
+  cols <- expand.grid(names(data)[colInds], names(data)[colInds])
+  cInds <- unlist(mapply(function(a, b, c) a*n+b:c, 0:max(0,n-2), 2:n,
+                         rep(n, n-1)))
+  cols <- cols[cInds,]  # indices will be in column major order
+  
+  ## These parameters are applied to each plot we create
+  pars <- list(geom_point(alpha=0.8, color="blue"),              
+               geom_smooth(method="loess", color="red", lwd=1.1))
+  
+  ## Create the plots (dont need the lower plots in the ggpairs call)
+  plots <- apply(cols, 1, function(cols)                    
+    ggplot(data[,cols], aes_string(x=cols[2], y=cols[1])) + pars)
+  gg <- ggpairs(data[, colInds],
+                diag=list(continuous="density"), 
+                upper=list(axisLabels='show'))
+  
+  rowFromTop <- unlist(mapply(`:`, 2:n, rep(n, n-1)))
+  colFromLeft <- rep(1:(n-1), times=(n-1):1)
+  for (i in seq_along(plots)) 
+    gg <- putPlot(gg, plots[[i]], rowFromTop[i], colFromLeft[i])
+  return( gg )
+}
+
+```
+# EDA
+Based on preliminary analysis of data (not shown due to length restriction), variables of impact on mpg could be all excluding vs, gear and carb, thus I decide to show just pairs plot for those included variabes. I use modified ggpairs function (originaly from GGally library, modified by [Timothy A. Jenkins](https://www.coursera.org/learn/regression-models/module/vdO0L/discussions/vckwVryBEeWOSBLWq6vR9Q) , alternatively [on StackOverflow](http://stackoverflow.com/questions/30858337/how-to-customize-lines-in-ggpairs-ggally?utm_medium=email&utm_source=other&utm_campaign=opencourse.discourse.regression-models~opencourse.discourse.a_xPWXNVEeWxvQr3acyajw.1FTPTbfLEeWfsw41r6ikDw~3khBgrx5EeWB9hL4Wm06nQ).
+
+```{r pairs, warning=F, message=F, cache=T}
+.ggpairs(c(9, 1:7), data=cars)
+```
+
+# Fitting
+The __am__ seems to be related with some of other variables from the dataset, so to not omit some important effect, I will start with model with all variables and will substract nonsignificant terms step by step. I show only fit of starting and final model, all steps in between are not shown and can be found in .Rmd file on GitHub.
+
+```{r model_1}
+fit1<-lm(mpg ~ ., data=mtcars)
+```
+I step by step substracted the most unsignificant term from model until there were only significant terms and exclusion of any of them made signficant difference. The final model contains only __wt__, __qsec__ and luckily, although only weakly significant, __am__. I refitted the final model so that I can compare two levels of transmissions.
+
+```{r model_2, echo=F, message=F, warning=F, results="hide"}
+fit2<-update(fit1, ~.-cyl)
+anova(fit1, fit2)
+summary(fit2)
+fit3<-update(fit2, ~.-vs)
+anova(fit2, fit3)
+summary(fit3)
+fit4<-update(fit3, ~.-carb)
+anova(fit3, fit4)
+summary(fit4)
+fit5<-update(fit4, ~.-gear)
+anova(fit4, fit5)
+summary(fit5)
+fit6<-update(fit5, ~.-drat)
+anova(fit6,fit5)
+summary(fit6)
+fit7<-update(fit6, ~.-disp)
+anova(fit6, fit7)
+summary(fit7)
+fit8<-update(fit7, ~.-hp)
+summary(fit8)$coeff
+```
+```{r model_fin}
+fit10<-lm(mpg~am+wt+qsec, data=cars)
+summary(fit10)$coeff
+```
+The diagnostic plots looks good (e.g. no serious problems) given binary nature of transmission variable (see Appendix for figure).
+
+Let's calculate 95% confidence intervals of manual transmission impact.
+```{r summary}
+sum_coeff<-summary(fit10)$coeff
+sum_coeff[2,1] + c(-1, 1)*qt(.975, df=fit10$df)*sum_coeff[2,2]
+```
+# Summary
+Cars with automatic transmission with given weight and 1/4 mile time constant are able to run on average 3 more miles per US gallon compared to the cares with manual transmission, the 95% value increase varying from 0.05 to 5.83 miles per US gallon. In internationally understandable units it is between 0.4 km/l to 2.5 km/l, with average around 1.3 km/l. So to answer the first question, the automatic transmission is better than manual transmission, if better means lower fuel consumption.
+
+# Appendix
+Diagnostic plots.
+```{r diagnostics}
+par(mfrow=c(2,2))
+plot(fit10)
+```
